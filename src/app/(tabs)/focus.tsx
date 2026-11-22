@@ -2,18 +2,13 @@ import { Pause, Play, RotateCcw, SkipForward } from "lucide-react-native";
 import { useCallback } from "react";
 import { Text, View, StyleSheet, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Svg, { Circle, Path } from "react-native-svg";
 
+import TimerCircle from "@/components/TimerCircle";
 import { colors } from "@/constants/colors";
 import { TimerType } from "@/constants/TimerType";
 import useStreak from "@/hooks/useStreak";
 import useTimer from "@/hooks/useTimer";
 import PawPrint from "lucide-react-native/icons/paw-print";
-
-const circleRadius = 120;
-const circleSize = circleRadius * 2;
-const stroke = 10;
-const dashCount = 2 * Math.PI * (circleRadius - stroke);
 
 export default function HomeScreen() {
   const { streak, resetStreak, addNewStreak } = useStreak();
@@ -57,15 +52,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView
-      style={{
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: colors.background,
-      }}
-      edges={["top", "bottom"]}
-    >
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       {!isStarted && !isAfterFocus && (
         <View style={styles.typeContainer}>
           <Pressable
@@ -125,95 +112,15 @@ export default function HomeScreen() {
         </View>
       )}
 
-      <View style={{ alignItems: "center", justifyContent: "center" }}>
-        <Svg
-          width={circleSize}
-          height={circleSize}
-          style={{ transform: [{ rotate: "-90deg" }] }}
-        >
-          <Path
-            d="
-                M 180 35
-                L 210 150
-                L 240 50
-                Q 240 42, 230 40
-                Z"
-            fill={colors.accent}
-          />
-          <Path
-            d={`
-                M 180 ${circleSize - 35}
-                L 210 ${circleSize - 150}
-                L 240 ${circleSize - 50}
-                Q 240 ${circleSize - 42}, 230 ${circleSize - 40}
-                Z`}
-            fill={colors.accent}
-          />
-
-          <Circle
-            fill={colors.background}
-            cx={circleRadius}
-            cy={circleRadius}
-            r={circleRadius - stroke / 1.9}
-          />
-
-          <Circle
-            stroke={`${colors.accent}55`}
-            fill="none"
-            cx={circleRadius}
-            cy={circleRadius}
-            r={circleRadius - stroke}
-            strokeWidth={stroke}
-          />
-
-          <Circle
-            stroke={colors.accent}
-            fill="none"
-            cx={circleRadius}
-            cy={circleRadius}
-            r={circleRadius - stroke}
-            strokeWidth={stroke}
-            strokeDasharray={dashCount}
-            strokeDashoffset={dashCount - getProgress() * dashCount}
-            strokeLinecap="round"
-          />
-        </Svg>
-        <View style={{ position: "absolute", alignItems: "center" }}>
-          <Text
-            style={{
-              fontFamily: "Andika",
-              color: colors.muted,
-              fontWeight: "bold",
-              fontSize: 12,
-              letterSpacing: 2,
-            }}
-          >
-            {getTimerHeader()}
-          </Text>
-          <Text
-            style={{
-              fontFamily: "Andika",
-              fontSize: 55,
-              fontWeight: "bold",
-              color: colors.text,
-            }}
-          >
-            {timeToString()}
-          </Text>
-          <Text
-            style={{
-              fontFamily: "Andika",
-              color: colors.muted,
-              fontSize: 12,
-            }}
-          >
-            of {Math.floor(durationMs / 10 / 60) / 100} minutes
-          </Text>
-        </View>
-      </View>
+      <TimerCircle
+        progress={getProgress()}
+        header={getTimerHeader() ?? ""}
+        time={timeToString()}
+        minutes={Math.floor(durationMs / 10 / 60) / 100}
+      />
 
       {timerType === TimerType.FOCUS && (
-        <View style={{ alignItems: "center", marginTop: 24 }}>
+        <View style={styles.streakWrapper}>
           <View style={styles.streakContainer}>
             {streak.map((item) => (
               <View
@@ -227,11 +134,7 @@ export default function HomeScreen() {
               </View>
             ))}
           </View>
-          <Text
-            style={{ color: colors.muted, fontFamily: "Andika", marginTop: 6 }}
-          >
-            Soft paws, steady progress.
-          </Text>
+          <Text style={styles.streakCaption}>Soft paws, steady progress.</Text>
         </View>
       )}
 
@@ -241,36 +144,16 @@ export default function HomeScreen() {
             style={styles.continueButton}
             onPress={() => setOnPause(false)}
           >
-            <Play
-              style={{ position: "absolute", left: 16 }}
-              size={24}
-              color={colors.background}
-            />
-            <Text
-              style={{
-                fontFamily: "Andika",
-                fontSize: 20,
-                color: colors.background,
-              }}
-            >
-              {continueText()}
-            </Text>
+            <Play style={styles.buttonIcon} size={24} color={colors.background} />
+            <Text style={styles.continueText}>{continueText()}</Text>
           </Pressable>
         ) : (
           <Pressable
             style={styles.pauseButton}
             onPress={() => setOnPause(true)}
           >
-            <Pause
-              style={{ position: "absolute", left: 16 }}
-              size={24}
-              color={colors.text}
-            />
-            <Text
-              style={{ fontFamily: "Andika", fontSize: 20, color: colors.text }}
-            >
-              Pause
-            </Text>
+            <Pause style={styles.buttonIcon} size={24} color={colors.text} />
+            <Text style={styles.pauseText}>Pause</Text>
           </Pressable>
         )}
         {isAfterFocus ? (
@@ -291,6 +174,12 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.background,
+  },
   typeContainer: {
     backgroundColor: colors.subtle,
     borderRadius: 48,
@@ -363,5 +252,28 @@ const styles = StyleSheet.create({
   streakContainer: {
     flexDirection: "row",
     gap: 12,
+  },
+  streakWrapper: {
+    alignItems: "center",
+    marginTop: 24,
+  },
+  streakCaption: {
+    color: colors.muted,
+    fontFamily: "Andika",
+    marginTop: 6,
+  },
+  buttonIcon: {
+    position: "absolute",
+    left: 16,
+  },
+  continueText: {
+    fontFamily: "Andika",
+    fontSize: 20,
+    color: colors.background,
+  },
+  pauseText: {
+    fontFamily: "Andika",
+    fontSize: 20,
+    color: colors.text,
   },
 });
