@@ -21,17 +21,24 @@ const durationKeys = {
 
 const getDefaultTimer = (timerType: TimerType) => {
   switch (timerType) {
-    case TimerType.FOCUS: return 1000 * 60 * 25;
-    case TimerType.SHORT: return 1000 * 60 * 5;
-    case TimerType.LONG: return 1000 * 60 * 15;
+    case TimerType.FOCUS:
+      return 1000 * 60 * 25;
+    case TimerType.SHORT:
+      return 1000 * 60 * 5;
+    case TimerType.LONG:
+      return 1000 * 60 * 15;
   }
-}
+};
 
 const readDuration = async (timerType: TimerType) => {
   try {
     const savedDuration = await AsyncStorage.getItem(durationKeys[timerType]);
-    
-    if (savedDuration && savedDuration !== '0' && isOnlyNumbers(savedDuration)) {
+
+    if (
+      savedDuration &&
+      savedDuration !== "0" &&
+      isOnlyNumbers(savedDuration)
+    ) {
       return Number(savedDuration);
     }
   } catch (e) {
@@ -59,6 +66,8 @@ export default function HomeScreen() {
   const isStartedRef = useRef(isStarted);
   const isOnPauseRef = useRef(isOnPause);
 
+  const lastStreakDateRef = useRef(new Date().toDateString());
+
   const [streak, setStreak] = useState([
     { id: "1", complete: false },
     { id: "2", complete: false },
@@ -69,6 +78,12 @@ export default function HomeScreen() {
   const isStreakLoadedRef = useRef(false);
 
   useEffect(() => {
+    AsyncStorage.getItem(storageKeys.streakDay)
+      .then(savedDay => {
+        if (savedDay) lastStreakDateRef.current = savedDay;
+      })
+      .catch((e) => console.log(e))
+    
     AsyncStorage.getItem(storageKeys.streak)
       .then((savedStreak) => {
         const count =
@@ -100,6 +115,11 @@ export default function HomeScreen() {
     return Math.max(0, endAt - Date.now());
   };
 
+  const getLeftTimeRef = useRef(getLeftTime);
+  useEffect(() => {
+    getLeftTimeRef.current = getLeftTime;
+  });
+
   const setOnPause = (onPause: boolean) => {
     if (onPause) {
       setRemainingTime(getLeftTime());
@@ -121,8 +141,8 @@ export default function HomeScreen() {
     setIsOnPause(onPause);
   };
 
-  const onResetHandle = () => {
-    readDuration(timerType)
+  const onResetHandle = (destinationTimerType: TimerType) => {
+    readDuration(destinationTimerType)
       .then((duration) => {
         setDurationMs(duration);
         setRemainingTime(duration);
@@ -136,47 +156,77 @@ export default function HomeScreen() {
   const onSkipHandle = () => {
     setIsAfterFocus(false);
     setTimerType(TimerType.FOCUS);
-    onResetHandle();
+    onResetHandle(TimerType.FOCUS);
   };
 
   const continueText = () => {
-    return isStarted ? "Continue" : timerType === TimerType.FOCUS? "Start" : "Rest";
+    return isStarted
+      ? "Continue"
+      : timerType === TimerType.FOCUS
+        ? "Start"
+        : "Rest";
   };
 
+  const rolloverIfNewDay = () => {
+    const today = new Date().toDateString();
+
+    if (lastStreakDateRef.current === today) return false;
+
+    lastStreakDateRef.current = today;
+
+    AsyncStorage.setItem(storageKeys.streakDay, today).catch(e => console.log(e));
+
+    return true;
+  }
+
   const onCompleted = () => {
+    let finalTimerType = timerType;
+
     if (timerType === TimerType.FOCUS) {
       setIsAfterFocus(true);
 
-      let hasFalse = true;
+      const isNewDay = rolloverIfNewDay();
+      
+      let incompleteCount = isNewDay 
+        ? streak.length
+        : streak.filter((item) => !item.complete).length;
+
+      if (incompleteCount <= 1) {
+        finalTimerType = TimerType.LONG;
+      } else {
+        finalTimerType = TimerType.SHORT;
+      }
+      
+      setTimerType(finalTimerType);
 
       setStreak((prevStreak) => {
+        const base = isNewDay
+          ? prevStreak.map((item) => { return { ...item, complete: false } })
+          : prevStreak;
+        
         let found = false;
 
-        const updatedStreak = prevStreak.map((item) => {
+        return base.map((item) => {
           if (!item.complete && !found) {
             found = true;
             return { ...item, complete: true };
           }
           return item;
         });
-
-        hasFalse = updatedStreak.some((item) => !item.complete);
-
-        if (hasFalse) {
-          setTimerType(TimerType.SHORT);
-        } else {
-          setTimerType(TimerType.LONG);
-        }
-
-        return updatedStreak;
       });
     } else if (isAfterFocus) {
       setIsAfterFocus(false);
       setTimerType(TimerType.FOCUS);
+      finalTimerType = TimerType.FOCUS;
     }
 
-    onResetHandle();
+    onResetHandle(finalTimerType);
   };
+
+  const onCompletedRef = useRef(onCompleted);
+  useEffect(() => {
+    onCompletedRef.current = onCompleted;
+  });
 
   useFocusEffect(
     useCallback(() => {
@@ -193,23 +243,12 @@ export default function HomeScreen() {
   // on first open and tab was switched to this
   useFocusEffect(
     useCallback(() => {
-      AsyncStorage.getItem(storageKeys.streakDay)
-        .then((savedDay) => {
-          const today = new Date().toDateString();
-
-          if (savedDay !== today) {
-            setStreak((prevStreak) => {
-              return prevStreak.map((item) => {
-                return { ...item, complete: false };
-              });
-            });
-            AsyncStorage.setItem(storageKeys.streakDay, today).catch((e) =>
-              console.log(e),
-            );
-          }
-        })
-        .catch((e) => console.log(e));
-
+      if (rolloverIfNewDay()) { 
+        setStreak(prevStreak =>
+          prevStreak.map((item) => { return { ...item, complete: false } })
+        );
+      }
+      
       readDuration(timerType)
         .then((duration) => {
           if (isOnPauseRef.current && !isStartedRef.current) {
@@ -227,13 +266,13 @@ export default function HomeScreen() {
   useEffect(() => {
     if (!endAt) return;
     const id = setInterval(() => {
-      const left = getLeftTime();
+      const left = getLeftTimeRef.current();
 
       setRemainingTime(left);
 
       if (left === 0) {
         clearInterval(id);
-        onCompleted();
+        onCompletedRef.current();
       }
     }, 250);
     return () => clearInterval(id);
@@ -252,18 +291,21 @@ export default function HomeScreen() {
     const ss = (totalSeconds % 60).toString().padStart(2, "0");
 
     return `${mm}:${ss}`;
-  };
+  }; 
 
-  const getPawRotation = () => {
+  const getPawRotation = useCallback(() => {
     const randomDeg = Math.floor(Math.random() * 51) + 20;
     return `-${randomDeg}deg`;
-  };
+  }, []);
 
   const getTimerHeader = () => {
     switch (timerType) {
-      case TimerType.FOCUS: return 'FOCUS SESSION';
-      case TimerType.SHORT: return 'SHORT BREAK';
-      case TimerType.LONG: return 'LONG BREAK';
+      case TimerType.FOCUS:
+        return "FOCUS SESSION";
+      case TimerType.SHORT:
+        return "SHORT BREAK";
+      case TimerType.LONG:
+        return "LONG BREAK";
     }
   };
 
@@ -424,21 +466,23 @@ export default function HomeScreen() {
       </View>
 
       {timerType === TimerType.FOCUS && (
-        <View style={{alignItems: 'center', marginTop: 24}}>
-        <View style={styles.streakContainer}>
-          {streak.map((item) => (
-            <View
-              key={item.id}
-              style={{ transform: [{ rotate: getPawRotation() }] }}
-            >
-              <PawPrint
-                size={28}
-                color={item.complete ? colors.accent : colors.muted}
-              ></PawPrint>
-            </View>
-          ))}
-        </View>
-          <Text style={{color: colors.muted, fontFamily: 'Andika', marginTop: 6}}>
+        <View style={{ alignItems: "center", marginTop: 24 }}>
+          <View style={styles.streakContainer}>
+            {streak.map((item) => (
+              <View
+                key={item.id}
+                style={{ transform: [{ rotate: getPawRotation() }] }}
+              >
+                <PawPrint
+                  size={28}
+                  color={item.complete ? colors.accent : colors.muted}
+                ></PawPrint>
+              </View>
+            ))}
+          </View>
+          <Text
+            style={{ color: colors.muted, fontFamily: "Andika", marginTop: 6 }}
+          >
             Soft paws, steady progress.
           </Text>
         </View>
@@ -487,7 +531,7 @@ export default function HomeScreen() {
             <SkipForward color={colors.text} />
           </Pressable>
         ) : (
-          <Pressable style={styles.resetButton} onPress={onResetHandle}>
+          <Pressable style={styles.resetButton} onPress={() => onResetHandle(timerType)}>
             <RotateCcw color={colors.text} />
           </Pressable>
         )}
