@@ -1,5 +1,5 @@
 export enum TimerType {
-  FOCUS,
-  SHORT,
-  LONG
+    FOCUS,
+    SHORT,
+    LONG,
 }

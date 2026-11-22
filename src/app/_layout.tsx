@@ -8,48 +8,48 @@ import { useEffect } from 'react';
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [fontsLoaded, fontError] = useFonts([
-    {
-      fontFamily: 'Andika',
-      fontDefinitions: [
+    const [fontsLoaded, fontError] = useFonts([
         {
-          path: require('../../assets/fonts/Andika-Regular.ttf'),
-          weight: 400,
+            fontFamily: 'Andika',
+            fontDefinitions: [
+                {
+                    path: require('../../assets/fonts/Andika-Regular.ttf'),
+                    weight: 400,
+                },
+                {
+                    path: require('../../assets/fonts/Andika-Italic.ttf'),
+                    weight: 400,
+                    style: 'italic',
+                },
+                {
+                    path: require('../../assets/fonts/Andika-Bold.ttf'),
+                    weight: 700,
+                },
+                {
+                    path: require('../../assets/fonts/Andika-BoldItalic.ttf'),
+                    weight: 700,
+                    style: 'italic',
+                },
+            ],
         },
-        {
-          path: require('../../assets/fonts/Andika-Italic.ttf'),
-          weight: 400,
-          style: 'italic',
-        },
-        {
-          path: require('../../assets/fonts/Andika-Bold.ttf'),
-          weight: 700,
-        },
-        {
-          path: require('../../assets/fonts/Andika-BoldItalic.ttf'),
-          weight: 700,
-          style: 'italic',
-        },
-      ],
-    },
-  ]);
+    ]);
 
-  useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
+    useEffect(() => {
+        if (fontsLoaded || fontError) {
+            SplashScreen.hideAsync();
+        }
+    }, [fontsLoaded, fontError]);
+
+    if (!fontsLoaded && !fontError) {
+        return null;
     }
-  }, [fontsLoaded, fontError]);
 
-  if (!fontsLoaded && !fontError) {
-    return null;
-  }
-
-  return (
-    <SafeAreaProvider>
-      <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name='(tabs)' options={{headerShown: false}} />
-      </Stack>
-    </SafeAreaProvider>
-  );
+    return (
+        <SafeAreaProvider>
+            <StatusBar style="dark" />
+            <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            </Stack>
+        </SafeAreaProvider>
+    );
 }

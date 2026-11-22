@@ -1,112 +1,118 @@
-import { storageKeys } from "@/constants/storageKeys";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { storageKeys } from '@/constants/storageKeys';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const isOnlyNumbers = (str: string) => /^\d*$/.test(str);
 
 export default function useStreak() {
-  const lastStreakDateRef = useRef(new Date().toDateString());
+    const lastStreakDateRef = useRef(new Date().toDateString());
 
-  const [streak, setStreak] = useState([
-    { id: "1", complete: false },
-    { id: "2", complete: false },
-    { id: "3", complete: false },
-    { id: "4", complete: false },
-  ]);
+    const [streak, setStreak] = useState([
+        { id: '1', complete: false },
+        { id: '2', complete: false },
+        { id: '3', complete: false },
+        { id: '4', complete: false },
+    ]);
 
-  const isStreakLoadedRef = useRef(false);
-  
-  const rolloverIfNewDay = () => {
-    const today = new Date().toDateString();
+    const isStreakLoadedRef = useRef(false);
 
-    if (lastStreakDateRef.current === today) return false;
+    const rolloverIfNewDay = () => {
+        const today = new Date().toDateString();
 
-    lastStreakDateRef.current = today;
+        if (lastStreakDateRef.current === today) return false;
 
-    AsyncStorage.setItem(storageKeys.streakDay, today).catch(e => console.log(e));
+        lastStreakDateRef.current = today;
 
-    return true;
-  }
-
-  const resetStreak = () => {
-    const hasFalse = streak.some((item) => !item.complete);
-
-    if (!hasFalse) {
-      setStreak((prevStreak) => {
-        return prevStreak.map((item) => {
-          return { ...item, complete: false };
-        });
-      });
-    }
-  }
-
-  const addNewStreak = () => {
-    const isNewDay = rolloverIfNewDay();
-  
-    const base = isNewDay
-      ? streak.map((item) => ({ ...item, complete: false }))
-      : streak;
-  
-    let found = false;
-    const next = base.map((item) => {
-      if (!item.complete && !found) {
-        found = true;
-        return { ...item, complete: true };
-      }
-      return item;
-    });
-  
-    setStreak(next);
-  
-    return next.filter((item) => !item.complete).length;
-  };
-  
-  useFocusEffect(
-    useCallback(() => {
-      if (!isStreakLoadedRef.current) return;
-      
-      if (rolloverIfNewDay()) {
-        setStreak(prevStreak =>
-          prevStreak.map((item) => { return { ...item, complete: false } })
+        AsyncStorage.setItem(storageKeys.streakDay, today).catch((e) =>
+            console.log(e),
         );
-      }
-    }, [])
-  );
 
-  useEffect(() => {
-    AsyncStorage.getItem(storageKeys.streakDay)
-      .then(savedDay => {
-        if (savedDay) lastStreakDateRef.current = savedDay;
-      })
-      .catch((e) => console.log(e))
-    
-    AsyncStorage.getItem(storageKeys.streak)
-      .then((savedStreak) => {
-        const count =
-          savedStreak && isOnlyNumbers(savedStreak) ? Number(savedStreak) : 0;
+        return true;
+    };
 
-        setStreak((prevStreak) => {
-          return prevStreak.map((item, index) => {
-            return { ...item, complete: index < count };
-          });
+    const resetStreak = () => {
+        const hasFalse = streak.some((item) => !item.complete);
+
+        if (!hasFalse) {
+            setStreak((prevStreak) => {
+                return prevStreak.map((item) => {
+                    return { ...item, complete: false };
+                });
+            });
+        }
+    };
+
+    const addNewStreak = () => {
+        const isNewDay = rolloverIfNewDay();
+
+        const base = isNewDay
+            ? streak.map((item) => ({ ...item, complete: false }))
+            : streak;
+
+        let found = false;
+        const next = base.map((item) => {
+            if (!item.complete && !found) {
+                found = true;
+                return { ...item, complete: true };
+            }
+            return item;
         });
-      })
-      .catch((e) => console.log(e))
-      .finally(() => {
-        isStreakLoadedRef.current = true;
-      });
-  }, []);
-  
-  useEffect(() => {
-    if (!isStreakLoadedRef.current) return;
 
-    const count = streak.filter((item) => item.complete).length;
+        setStreak(next);
 
-    AsyncStorage.setItem(storageKeys.streak, String(count)).catch((e) =>
-      console.log(e),
+        return next.filter((item) => !item.complete).length;
+    };
+
+    useFocusEffect(
+        useCallback(() => {
+            if (!isStreakLoadedRef.current) return;
+
+            if (rolloverIfNewDay()) {
+                setStreak((prevStreak) =>
+                    prevStreak.map((item) => {
+                        return { ...item, complete: false };
+                    }),
+                );
+            }
+        }, []),
     );
-  }, [streak]);
 
-  return { streak, resetStreak, addNewStreak };
+    useEffect(() => {
+        AsyncStorage.getItem(storageKeys.streakDay)
+            .then((savedDay) => {
+                if (savedDay) lastStreakDateRef.current = savedDay;
+            })
+            .catch((e) => console.log(e));
+
+        AsyncStorage.getItem(storageKeys.streak)
+            .then((savedStreak) => {
+                const count =
+                    savedStreak && isOnlyNumbers(savedStreak)
+                        ? Number(savedStreak)
+                        : 0;
+
+                setStreak((prevStreak) => {
+                    return prevStreak.map((item, index) => {
+                        return { ...item, complete: index < count };
+                    });
+                });
+            })
+            .catch((e) => console.log(e))
+            .finally(() => {
+                isStreakLoadedRef.current = true;
+            });
+    }, []);
+
+    useEffect(() => {
+        if (!isStreakLoadedRef.current) return;
+
+        const count = streak.filter((item) => item.complete).length;
+
+        AsyncStorage.setItem(storageKeys.streak, String(count)).catch((e) =>
+            console.log(e),
+        );
+    }, [streak]);
+
+    return { streak, resetStreak, addNewStreak };
 }
