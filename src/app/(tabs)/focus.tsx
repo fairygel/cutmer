@@ -1,51 +1,14 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Pause, Play, RotateCcw, SkipForward } from "lucide-react-native";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback } from "react";
 import { Text, View, StyleSheet, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, Path } from "react-native-svg";
 
 import { colors } from "@/constants/colors";
-import { storageKeys } from "@/constants/storageKeys";
 import { TimerType } from "@/constants/TimerType";
-import { useFocusEffect } from "expo-router";
+import useStreak from "@/hooks/useStreak";
+import useTimer from "@/hooks/useTimer";
 import PawPrint from "lucide-react-native/icons/paw-print";
-
-const isOnlyNumbers = (str: string) => /^\d*$/.test(str);
-
-const durationKeys = {
-  [TimerType.FOCUS]: storageKeys.focusDuration,
-  [TimerType.SHORT]: storageKeys.shortDuration,
-  [TimerType.LONG]: storageKeys.longDuration,
-};
-
-const getDefaultTimer = (timerType: TimerType) => {
-  switch (timerType) {
-    case TimerType.FOCUS:
-      return 1000 * 60 * 25;
-    case TimerType.SHORT:
-      return 1000 * 60 * 5;
-    case TimerType.LONG:
-      return 1000 * 60 * 15;
-  }
-};
-
-const readDuration = async (timerType: TimerType) => {
-  try {
-    const savedDuration = await AsyncStorage.getItem(durationKeys[timerType]);
-
-    if (
-      savedDuration &&
-      savedDuration !== "0" &&
-      isOnlyNumbers(savedDuration)
-    ) {
-      return Number(savedDuration);
-    }
-  } catch (e) {
-    console.log(e);
-  }
-  return getDefaultTimer(timerType);
-};
 
 const circleRadius = 120;
 const circleSize = circleRadius * 2;
@@ -53,111 +16,21 @@ const stroke = 10;
 const dashCount = 2 * Math.PI * (circleRadius - stroke);
 
 export default function HomeScreen() {
-  const [timerType, setTimerType] = useState(TimerType.FOCUS);
+  const { streak, resetStreak, addNewStreak } = useStreak();
 
-  const [durationMs, setDurationMs] = useState(0);
-  const [remainingTime, setRemainingTime] = useState(0);
-  const [endAt, setEndAt] = useState(0);
-
-  const [isOnPause, setIsOnPause] = useState(true);
-  const [isStarted, setIsStarted] = useState(false);
-  const [isAfterFocus, setIsAfterFocus] = useState(false);
-
-  const isStartedRef = useRef(isStarted);
-  const isOnPauseRef = useRef(isOnPause);
-
-  const lastStreakDateRef = useRef(new Date().toDateString());
-
-  const [streak, setStreak] = useState([
-    { id: "1", complete: false },
-    { id: "2", complete: false },
-    { id: "3", complete: false },
-    { id: "4", complete: false },
-  ]);
-
-  const isStreakLoadedRef = useRef(false);
-
-  useEffect(() => {
-    AsyncStorage.getItem(storageKeys.streakDay)
-      .then(savedDay => {
-        if (savedDay) lastStreakDateRef.current = savedDay;
-      })
-      .catch((e) => console.log(e))
-    
-    AsyncStorage.getItem(storageKeys.streak)
-      .then((savedStreak) => {
-        const count =
-          savedStreak && isOnlyNumbers(savedStreak) ? Number(savedStreak) : 0;
-
-        setStreak((prevStreak) => {
-          return prevStreak.map((item, index) => {
-            return { ...item, complete: index < count };
-          });
-        });
-      })
-      .catch((e) => console.log(e))
-      .finally(() => {
-        isStreakLoadedRef.current = true;
-      });
-  }, []);
-
-  useEffect(() => {
-    if (!isStreakLoadedRef.current) return;
-
-    const count = streak.filter((item) => item.complete).length;
-
-    AsyncStorage.setItem(storageKeys.streak, String(count)).catch((e) =>
-      console.log(e),
-    );
-  }, [streak]);
-
-  const getLeftTime = () => {
-    return Math.max(0, endAt - Date.now());
-  };
-
-  const getLeftTimeRef = useRef(getLeftTime);
-  useEffect(() => {
-    getLeftTimeRef.current = getLeftTime;
-  });
-
-  const setOnPause = (onPause: boolean) => {
-    if (onPause) {
-      setRemainingTime(getLeftTime());
-      setEndAt(0);
-    } else {
-      setEndAt(Date.now() + remainingTime);
-      setIsStarted(true);
-
-      const hasFalse = streak.some((item) => !item.complete);
-
-      if (!hasFalse) {
-        setStreak((prevStreak) => {
-          return prevStreak.map((item) => {
-            return { ...item, complete: false };
-          });
-        });
-      }
-    }
-    setIsOnPause(onPause);
-  };
-
-  const onResetHandle = (destinationTimerType: TimerType) => {
-    readDuration(destinationTimerType)
-      .then((duration) => {
-        setDurationMs(duration);
-        setRemainingTime(duration);
-        setEndAt(0);
-        setIsOnPause(true);
-        setIsStarted(false);
-      })
-      .catch((e) => console.log(e));
-  };
-
-  const onSkipHandle = () => {
-    setIsAfterFocus(false);
-    setTimerType(TimerType.FOCUS);
-    onResetHandle(TimerType.FOCUS);
-  };
+  const {
+    timerType,
+    setTimerType,
+    durationMs,
+    isStarted,
+    isOnPause,
+    isAfterFocus,
+    getProgress,
+    timeToString,
+    setOnPause,
+    onResetHandle,
+    onSkipHandle,
+  } = useTimer({ onStart: resetStreak, onFocusCompleted: addNewStreak });
 
   const continueText = () => {
     return isStarted
@@ -166,132 +39,6 @@ export default function HomeScreen() {
         ? "Start"
         : "Rest";
   };
-
-  const rolloverIfNewDay = () => {
-    const today = new Date().toDateString();
-
-    if (lastStreakDateRef.current === today) return false;
-
-    lastStreakDateRef.current = today;
-
-    AsyncStorage.setItem(storageKeys.streakDay, today).catch(e => console.log(e));
-
-    return true;
-  }
-
-  const onCompleted = () => {
-    let finalTimerType = timerType;
-
-    if (timerType === TimerType.FOCUS) {
-      setIsAfterFocus(true);
-
-      const isNewDay = rolloverIfNewDay();
-      
-      let incompleteCount = isNewDay 
-        ? streak.length
-        : streak.filter((item) => !item.complete).length;
-
-      if (incompleteCount <= 1) {
-        finalTimerType = TimerType.LONG;
-      } else {
-        finalTimerType = TimerType.SHORT;
-      }
-      
-      setTimerType(finalTimerType);
-
-      setStreak((prevStreak) => {
-        const base = isNewDay
-          ? prevStreak.map((item) => { return { ...item, complete: false } })
-          : prevStreak;
-        
-        let found = false;
-
-        return base.map((item) => {
-          if (!item.complete && !found) {
-            found = true;
-            return { ...item, complete: true };
-          }
-          return item;
-        });
-      });
-    } else if (isAfterFocus) {
-      setIsAfterFocus(false);
-      setTimerType(TimerType.FOCUS);
-      finalTimerType = TimerType.FOCUS;
-    }
-
-    onResetHandle(finalTimerType);
-  };
-
-  const onCompletedRef = useRef(onCompleted);
-  useEffect(() => {
-    onCompletedRef.current = onCompleted;
-  });
-
-  useFocusEffect(
-    useCallback(() => {
-      isOnPauseRef.current = isOnPause;
-    }, [isOnPause]),
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      isStartedRef.current = isStarted;
-    }, [isStarted]),
-  );
-
-  // on first open and tab was switched to this
-  useFocusEffect(
-    useCallback(() => {
-      if (rolloverIfNewDay()) { 
-        setStreak(prevStreak =>
-          prevStreak.map((item) => { return { ...item, complete: false } })
-        );
-      }
-      
-      readDuration(timerType)
-        .then((duration) => {
-          if (isOnPauseRef.current && !isStartedRef.current) {
-            setRemainingTime(duration);
-            setEndAt(0);
-          }
-          if (!isStartedRef.current) {
-            setDurationMs(duration);
-          }
-        })
-        .catch((e) => console.log(e));
-    }, [timerType]),
-  );
-
-  useEffect(() => {
-    if (!endAt) return;
-    const id = setInterval(() => {
-      const left = getLeftTimeRef.current();
-
-      setRemainingTime(left);
-
-      if (left === 0) {
-        clearInterval(id);
-        onCompletedRef.current();
-      }
-    }, 250);
-    return () => clearInterval(id);
-  }, [endAt]);
-
-  const getProgress = () => {
-    return (durationMs - remainingTime) / durationMs || 0;
-  };
-
-  const timeToString = () => {
-    const totalSeconds = Math.ceil(remainingTime / 1000);
-
-    const mm = Math.floor(totalSeconds / 60)
-      .toString()
-      .padStart(2, "0");
-    const ss = (totalSeconds % 60).toString().padStart(2, "0");
-
-    return `${mm}:${ss}`;
-  }; 
 
   const getPawRotation = useCallback(() => {
     const randomDeg = Math.floor(Math.random() * 51) + 20;
@@ -531,7 +278,10 @@ export default function HomeScreen() {
             <SkipForward color={colors.text} />
           </Pressable>
         ) : (
-          <Pressable style={styles.resetButton} onPress={() => onResetHandle(timerType)}>
+          <Pressable
+            style={styles.resetButton}
+            onPress={() => onResetHandle(timerType)}
+          >
             <RotateCcw color={colors.text} />
           </Pressable>
         )}
