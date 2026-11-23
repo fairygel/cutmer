@@ -63,6 +63,10 @@ export default function useTimer({ onStart, onFocusCompleted }: TimerHooks) {
 
     const actionIdRef = useRef(0);
 
+    const [loadedTimerType, setLoadedTimerType] = useState<TimerType | null>(
+        null,
+    );
+
     const getLeftTime = () => {
         return Math.max(0, endAt - Date.now());
     };
@@ -74,12 +78,11 @@ export default function useTimer({ onStart, onFocusCompleted }: TimerHooks) {
 
     const setOnPause = (onPause: boolean) => {
         if (onPause) {
+            actionIdRef.current++;
             setRemainingTime(getLeftTime());
             setEndAt(0);
         } else {
-            actionIdRef.current++;
-
-            if (!remainingTime) return;
+            if (!isDurationReady) return;
 
             setEndAt(Date.now() + remainingTime);
             setIsStarted(true);
@@ -94,6 +97,7 @@ export default function useTimer({ onStart, onFocusCompleted }: TimerHooks) {
 
         setEndAt(0);
         setIsStarted(false);
+        setLoadedTimerType(null);
 
         readDuration(destinationTimerType)
             .then((duration) => {
@@ -104,6 +108,7 @@ export default function useTimer({ onStart, onFocusCompleted }: TimerHooks) {
                 setEndAt(0);
                 setIsOnPause(true);
                 setIsStarted(false);
+                setLoadedTimerType(destinationTimerType);
             })
             .catch((e) => console.log(e));
     };
@@ -112,6 +117,11 @@ export default function useTimer({ onStart, onFocusCompleted }: TimerHooks) {
         setIsAfterFocus(false);
         setTimerType(TimerType.FOCUS);
         onResetHandle(TimerType.FOCUS);
+    };
+
+    const selectTimerType = (destinationTimerType: TimerType) => {
+        setTimerType(destinationTimerType);
+        onResetHandle(destinationTimerType);
     };
 
     const onCompleted = () => {
@@ -168,6 +178,7 @@ export default function useTimer({ onStart, onFocusCompleted }: TimerHooks) {
                     if (isOnPauseRef.current && !isStartedRef.current) {
                         setRemainingTime(duration);
                         setEndAt(0);
+                        setLoadedTimerType(timerType);
                     }
                     if (!isStartedRef.current) {
                         setDurationMs(duration);
@@ -181,7 +192,7 @@ export default function useTimer({ onStart, onFocusCompleted }: TimerHooks) {
         return (durationMs - remainingTime) / durationMs || 0;
     };
 
-    const isDurationReady = remainingTime > 0;
+    const isDurationReady = loadedTimerType === timerType && remainingTime > 0;
 
     const timeToString = () => {
         const totalSeconds = Math.ceil(remainingTime / 1000);
@@ -212,6 +223,7 @@ export default function useTimer({ onStart, onFocusCompleted }: TimerHooks) {
     return {
         timerType,
         setTimerType,
+        selectTimerType,
         durationMs,
         remainingTime,
         isStarted,

@@ -21,7 +21,7 @@ export default function HomeScreen() {
 
     const {
         timerType,
-        setTimerType,
+        selectTimerType,
         durationMs,
         isStarted,
         isOnPause,
@@ -67,7 +67,7 @@ export default function HomeScreen() {
                                 ? styles.typeOptionActive
                                 : styles.typeOptionInactive
                         }
-                        onPress={() => setTimerType(TimerType.FOCUS)}
+                        onPress={() => selectTimerType(TimerType.FOCUS)}
                     >
                         <Text
                             style={
@@ -85,7 +85,7 @@ export default function HomeScreen() {
                                 ? styles.typeOptionActive
                                 : styles.typeOptionInactive
                         }
-                        onPress={() => setTimerType(TimerType.SHORT)}
+                        onPress={() => selectTimerType(TimerType.SHORT)}
                     >
                         <Text
                             style={
@@ -103,7 +103,7 @@ export default function HomeScreen() {
                                 ? styles.typeOptionActive
                                 : styles.typeOptionInactive
                         }
-                        onPress={() => setTimerType(TimerType.LONG)}
+                        onPress={() => selectTimerType(TimerType.LONG)}
                     >
                         <Text
                             style={
