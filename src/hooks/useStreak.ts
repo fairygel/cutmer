@@ -79,22 +79,24 @@ export default function useStreak() {
     );
 
     useEffect(() => {
-        AsyncStorage.getItem(storageKeys.streakDay)
-            .then((savedDay) => {
+        Promise.all([
+            AsyncStorage.getItem(storageKeys.streakDay),
+            AsyncStorage.getItem(storageKeys.streak),
+        ])
+            .then(([savedDay, savedStreak]) => {
                 if (savedDay) lastStreakDateRef.current = savedDay;
-            })
-            .catch((e) => console.log(e));
 
-        AsyncStorage.getItem(storageKeys.streak)
-            .then((savedStreak) => {
                 const count =
                     savedStreak && isOnlyNumbers(savedStreak)
                         ? Number(savedStreak)
                         : 0;
 
+                const savedCount =
+                    savedDay === new Date().toDateString() ? count : 0;
+
                 setStreak((prevStreak) => {
                     return prevStreak.map((item, index) => {
-                        return { ...item, complete: index < count };
+                        return { ...item, complete: index < savedCount };
                     });
                 });
             })
@@ -109,9 +111,10 @@ export default function useStreak() {
 
         const count = streak.filter((item) => item.complete).length;
 
-        AsyncStorage.setItem(storageKeys.streak, String(count)).catch((e) =>
-            console.log(e),
-        );
+        AsyncStorage.multiSet([
+            [storageKeys.streak, String(count)],
+            [storageKeys.streakDay, lastStreakDateRef.current],
+        ]).catch((e) => console.log(e));
     }, [streak]);
 
     return { streak, resetStreak, addNewStreak };

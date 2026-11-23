@@ -26,6 +26,7 @@ export default function HomeScreen() {
         isStarted,
         isOnPause,
         isAfterFocus,
+        isDurationReady,
         getProgress,
         timeToString,
         setOnPause,
@@ -156,7 +157,11 @@ export default function HomeScreen() {
             <View style={styles.session}>
                 {isOnPause ? (
                     <Pressable
-                        style={styles.continueButton}
+                        style={[
+                            styles.continueButton,
+                            !isDurationReady && styles.buttonDisabled,
+                        ]}
+                        disabled={!isDurationReady}
                         onPress={() => setOnPause(false)}
                     >
                         <Play
@@ -267,6 +272,9 @@ const styles = StyleSheet.create({
         padding: 18,
         borderRadius: 48,
         flexDirection: 'row',
+    },
+    buttonDisabled: {
+        opacity: 0.5,
     },
     resetButton: {
         width: 66,

@@ -61,6 +61,8 @@ export default function useTimer({ onStart, onFocusCompleted }: TimerHooks) {
     const isStartedRef = useRef(isStarted);
     const isOnPauseRef = useRef(isOnPause);
 
+    const actionIdRef = useRef(0);
+
     const getLeftTime = () => {
         return Math.max(0, endAt - Date.now());
     };
@@ -75,6 +77,10 @@ export default function useTimer({ onStart, onFocusCompleted }: TimerHooks) {
             setRemainingTime(getLeftTime());
             setEndAt(0);
         } else {
+            actionIdRef.current++;
+
+            if (!remainingTime) return;
+
             setEndAt(Date.now() + remainingTime);
             setIsStarted(true);
 
@@ -84,8 +90,15 @@ export default function useTimer({ onStart, onFocusCompleted }: TimerHooks) {
     };
 
     const onResetHandle = (destinationTimerType: TimerType) => {
+        const actionId = ++actionIdRef.current;
+
+        setEndAt(0);
+        setIsStarted(false);
+
         readDuration(destinationTimerType)
             .then((duration) => {
+                if (actionId !== actionIdRef.current) return;
+
                 setDurationMs(duration);
                 setRemainingTime(duration);
                 setEndAt(0);
@@ -146,8 +159,12 @@ export default function useTimer({ onStart, onFocusCompleted }: TimerHooks) {
     // on first open and tab was switched to this
     useFocusEffect(
         useCallback(() => {
+            const actionId = actionIdRef.current;
+
             readDuration(timerType)
                 .then((duration) => {
+                    if (actionId !== actionIdRef.current) return;
+
                     if (isOnPauseRef.current && !isStartedRef.current) {
                         setRemainingTime(duration);
                         setEndAt(0);
@@ -163,6 +180,8 @@ export default function useTimer({ onStart, onFocusCompleted }: TimerHooks) {
     const getProgress = () => {
         return (durationMs - remainingTime) / durationMs || 0;
     };
+
+    const isDurationReady = remainingTime > 0;
 
     const timeToString = () => {
         const totalSeconds = Math.ceil(remainingTime / 1000);
@@ -200,6 +219,7 @@ export default function useTimer({ onStart, onFocusCompleted }: TimerHooks) {
         isAfterFocus,
         getProgress,
         timeToString,
+        isDurationReady,
         setOnPause,
         onResetHandle,
         onSkipHandle,
