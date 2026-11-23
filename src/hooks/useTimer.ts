@@ -109,7 +109,7 @@ export default function useTimer({ onStart, onFocusCompleted }: TimerHooks) {
 
             const incompleteCount = onFocusCompleted();
 
-            if (incompleteCount <= 1) {
+            if (incompleteCount <= 0) {
                 finalTimerType = TimerType.LONG;
             } else {
                 finalTimerType = TimerType.SHORT;

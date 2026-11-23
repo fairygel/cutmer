@@ -1,5 +1,4 @@
 import { Pause, Play, RotateCcw, SkipForward } from 'lucide-react-native';
-import { useCallback } from 'react';
 import { Text, View, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,6 +8,13 @@ import { TimerType } from '@/constants/TimerType';
 import useStreak from '@/hooks/useStreak';
 import useTimer from '@/hooks/useTimer';
 import PawPrint from 'lucide-react-native/icons/paw-print';
+
+const pawRotations: Record<string, number> = {
+    '1': Math.floor(Math.random() * 51) + 20,
+    '2': Math.floor(Math.random() * 51) + 20,
+    '3': Math.floor(Math.random() * 51) + 20,
+    '4': Math.floor(Math.random() * 51) + 20,
+};
 
 export default function HomeScreen() {
     const { streak, resetStreak, addNewStreak } = useStreak();
@@ -35,10 +41,9 @@ export default function HomeScreen() {
               : 'Rest';
     };
 
-    const getPawRotation = useCallback(() => {
-        const randomDeg = Math.floor(Math.random() * 51) + 20;
-        return `-${randomDeg}deg`;
-    }, []);
+    const getPawRotation = (id: string) => {
+        return `-${pawRotations[id]}deg`;
+    };
 
     const getTimerHeader = () => {
         switch (timerType) {
@@ -126,7 +131,9 @@ export default function HomeScreen() {
                             <View
                                 key={item.id}
                                 style={{
-                                    transform: [{ rotate: getPawRotation() }],
+                                    transform: [
+                                        { rotate: getPawRotation(item.id) },
+                                    ],
                                 }}
                             >
                                 <PawPrint
